@@ -1,0 +1,453 @@
+// ============================================================================
+// 1. INVENTARIO DE PRODUCTOS Y SERVICIOS (Equivalente a tu inventario.xlsx)
+// ============================================================================
+const inventario = {
+    1: { nombre: "Cable UTP Cat6 (metro)", precio: 1.50, stock: 20 },
+    2: { nombre: "Conector RJ45", precio: 0.50, stock: 50 },
+    3: { nombre: "Limpieza de RAM", precio: 10.00, stock: 10 },
+    4: { nombre: "Mantenimiento Preventivo PC", precio: 25.00, stock: 8 },
+    5: { nombre: "Formateo e Instalacion OS", precio: 30.00, stock: 6 },
+    6: { nombre: "Pasta Termica Premium", precio: 8.00, stock: 12 },
+    7: { nombre: "Router Wi-Fi Doble Banda", precio: 45.00, stock: 5 },
+    8: { nombre: "Switch 8 Puertos", precio: 22.00, stock: 7 },
+    9: { nombre: "Disco SSD 480GB", precio: 38.00, stock: 9 },
+    10: { nombre: "Memoria RAM DDR4 8GB", precio: 28.00, stock: 11 }
+};
+
+// Lista (arreglo) donde se guardan los artículos de la factura actual
+let carrito = [];
+function hayStockSuficiente(codigo, cantidadExtra) {
+    const productoInfo = inventario[codigo];
+    const itemEnCarrito = carrito.find(item => item.codigo === codigo);
+    const cantidadActual = itemEnCarrito ? itemEnCarrito.cantidad : 0;
+
+    return (cantidadActual + cantidadExtra) <= productoInfo.stock;
+}
+
+// ============================================================================
+// 2. CARGA INICIAL DEL MENÚ DESPLEGABLE Y EVENTOS DE BOTONES
+// ============================================================================
+const listaProductos = document.getElementById("lista_productos");
+
+function actualizarListaProductos() {
+    if (!listaProductos) return;
+    listaProductos.innerHTML = "";
+
+    for (const codigo in inventario) {
+        const item = inventario[codigo];
+        const opcion = document.createElement("option");
+        opcion.value = `[${codigo}] ${item.nombre}`;
+        opcion.label = `$${item.precio.toFixed(2)} | Stock: ${item.stock}`;
+        listaProductos.appendChild(opcion);
+    }
+}
+
+function resolverCodigoProducto(textoIngresado) {
+    const limpio = String(textoIngresado || "").trim();
+    if (!limpio) return null;
+
+    // 1. Coincidencia exacta por clave de inventario
+    if (inventario[limpio]) {
+        return limpio;
+    }
+
+    // 2. Extraer código entre corchetes, ej. "[1] Cable UTP Cat6 (metro)" -> "1"
+    const matchCorchetes = limpio.match(/^\[([^\]]+)\]/);
+    if (matchCorchetes) {
+        const codExtraido = matchCorchetes[1].trim();
+        if (inventario[codExtraido]) return codExtraido;
+
+        // Buscar clave numérica equivalente (ej. "1" coincide con "01")
+        for (const codigo in inventario) {
+            if (String(Number(codigo)) === String(Number(codExtraido)) && !isNaN(Number(codExtraido))) {
+                return codigo;
+            }
+        }
+    }
+
+    // 3. Coincidencia exacta por nombre (sin importar mayúsculas)
+    const lower = limpio.toLowerCase();
+    for (const codigo in inventario) {
+        if (String(inventario[codigo].nombre).toLowerCase() === lower) {
+            return codigo;
+        }
+    }
+
+    // 4. Si el texto coincide con "[código] nombre" pero con nombre ligeramente distinto, usar el código si existe
+    if (matchCorchetes) {
+        const codExtraido = matchCorchetes[1].trim();
+        for (const codigo in inventario) {
+            if (codigo.toLowerCase() === codExtraido.toLowerCase()) {
+                return codigo;
+            }
+        }
+    }
+
+    return null;
+}
+
+actualizarListaProductos();
+
+// Vinculamos los botones principales con sus funciones
+document.getElementById("btnAgregar").addEventListener("click", agregarProducto);
+document.getElementById("btnImprimir").addEventListener("click", () => window.print());
+document.getElementById("btnLimpiar").addEventListener("click", limpiarFactura);
+
+// ============================================================================
+// 3. FUNCIONES DE LÓGICA DE FACTURACIÓN
+// ============================================================================
+
+/**
+ * Agrega un producto al carrito.
+ * Si el producto ya existe en la lista, suma la cantidad a la fila existente
+ * en lugar de crear una fila duplicada.
+ */
+function agregarProducto() {
+    const inputBuscar = document.getElementById("buscar_producto");
+    const inputCantidad = document.getElementById("cantidad");
+
+    const textoProducto = inputBuscar ? inputBuscar.value : "";
+    const codigo = resolverCodigoProducto(textoProducto);
+    const cantidad = parseInt(inputCantidad ? inputCantidad.value : "1", 10);
+
+    if (!codigo) {
+        if (inputBuscar) inputBuscar.focus();
+        return;
+    }
+
+    // Validamos que la cantidad sea un número válido y mayor a 0
+    if (isNaN(cantidad) || cantidad <= 0) {
+        alert("⚠️ La cantidad debe ser mayor a cero.");
+        return;
+    }
+
+    if (!hayStockSuficiente(codigo, cantidad)) {
+        alert("⚠️ No hay suficiente en stock.");
+        return;
+    }
+
+    const productoInfo = inventario[codigo];
+
+    // Buscamos si el producto ya está en el carrito por su código
+    const itemExistente = carrito.find(item => item.codigo === codigo);
+
+    if (itemExistente) {
+        // Ya existe: acumulamos cantidad y recalculamos el subtotal de esa fila
+        itemExistente.cantidad += cantidad;
+        itemExistente.subtotal = itemExistente.precio * itemExistente.cantidad;
+    } else {
+        // No existe: agregamos un nuevo objeto al arreglo 'carrito'
+        carrito.push({
+            codigo: codigo,
+            nombre: productoInfo.nombre,
+            precio: productoInfo.precio,
+            cantidad: cantidad,
+            subtotal: productoInfo.precio * cantidad
+        });
+    }
+
+    renderizarCarrito();
+    if (inputBuscar) inputBuscar.value = "";
+    if (inputCantidad) inputCantidad.value = "1";
+}
+
+/**
+ * Suma 1 unidad a un producto ya presente en el carrito y actualiza su subtotal.
+ * @param {number} indice - Posición del producto en 'carrito'.
+ */
+
+function sumarUnidad(indice) {
+    const codigo = carrito[indice].codigo;
+
+    if (!hayStockSuficiente(codigo, 1)) {
+        alert("⚠️ No hay suficiente en stock.");
+        return;
+    }
+
+    carrito[indice].cantidad += 1;
+    carrito[indice].subtotal = carrito[indice].precio * carrito[indice].cantidad;
+    renderizarCarrito();
+}
+
+/**
+ * Resta 1 unidad a un producto en el carrito.
+ * Si tiene más de 1 unidad (por ejemplo, 55), solo resta 1 (queda en 54).
+ * Si solo tenía 1 unidad, elimina la fila completa porque llegaría a 0.
+ * @param {number} indice - Posición del producto en 'carrito'.
+ */
+function restarUnidad(indice) {
+    if (carrito[indice].cantidad > 1) {
+        carrito[indice].cantidad -= 1;
+        carrito[indice].subtotal = carrito[indice].precio * carrito[indice].cantidad;
+    } else {
+        carrito.splice(indice, 1);
+    }
+    renderizarCarrito();
+}
+
+/**
+ * Elimina por completo la fila del producto indicado de la factura.
+ * @param {number} indice - Posición del producto en 'carrito'.
+ */
+function eliminarProducto(indice) {
+    carrito.splice(indice, 1);
+    renderizarCarrito();
+}
+
+/**
+ * Redibuja toda la tabla HTML con los datos actuales de 'carrito'
+ * y calcula el total general de la factura.
+ */
+function renderizarCarrito() {
+    const tabla = document.getElementById("lista_carrito");
+    tabla.innerHTML = ""; // Limpiamos la tabla antes de volver a pintarla
+    let totalGeneral = 0;
+
+    for (let i = 0; i < carrito.length; i++) {
+        const item = carrito[i];
+        totalGeneral += item.subtotal;
+
+        // Generamos la fila con botones para restar 1, sumar 1 o eliminar toda la fila
+        tabla.innerHTML += `
+            <tr>
+                <td>${item.codigo}</td>
+                <td>${item.nombre}</td>
+                <td>${item.cantidad}</td>
+                <td>$${item.precio.toFixed(2)}</td>
+                <td>$${item.subtotal.toFixed(2)}</td>
+                <td class="no-imprimir">
+                    <button type="button" class="btn-cantidad" onclick="restarUnidad(${i})" title="Restar 1 unidad">➖</button>
+                    <button type="button" class="btn-cantidad" onclick="sumarUnidad(${i})" title="Sumar 1 unidad">➕</button>
+                    <button type="button" class="btn-eliminar-fila" onclick="eliminarProducto(${i})" title="Eliminar toda la fila">❌</button>
+                </td>
+            </tr>
+        `;
+    }
+
+    document.getElementById("total").innerText = totalGeneral.toFixed(2);
+}
+
+/**
+ * Vacía el carrito, limpia los campos de cabecera y reinicia el total a 0.00.
+ */
+function limpiarFactura() {
+    carrito = [];
+    renderizarCarrito();
+    document.getElementById("cliente").value = "";
+    document.getElementById("num_factura").value = "";
+
+}
+
+window.addEventListener("beforeunload", function (event) {
+    const clienteEscrito = document.getElementById("cliente")?.value.trim() !== "";
+    const ciEscrito = document.getElementById("ci_cliente")?.value.trim() !== "";
+    const telEscrito = document.getElementById("telefono_cliente")?.value.trim() !== "";
+    const hayDatosActivos =
+        carrito.length > 0 ||
+        facturasEmitidas.length > 0 ||
+        clienteEscrito ||
+        ciEscrito ||
+        telEscrito;
+
+    if (hayDatosActivos) {
+        event.preventDefault();
+        event.returnValue = "";
+    }
+});
+
+const CLAVE_INVENTARIO = "facturacion_inventario_v1";
+const CLAVE_FACTURAS = "facturacion_emitidas_v1";
+
+function guardarEstadoLocal() {
+    try {
+        localStorage.setItem(CLAVE_INVENTARIO, JSON.stringify(inventario));
+        localStorage.setItem(CLAVE_FACTURAS, JSON.stringify(facturasEmitidas));
+    } catch (e) {
+        // Si localStorage no está disponible, continúa funcionando en memoria
+    }
+}
+
+function cargarEstadoLocal() {
+    try {
+        const invGuardado = localStorage.getItem(CLAVE_INVENTARIO);
+        if (invGuardado) {
+            const parsedInv = JSON.parse(invGuardado);
+            if (parsedInv && typeof parsedInv === "object") {
+                for (const clave in inventario) {
+                    delete inventario[clave];
+                }
+                Object.assign(inventario, parsedInv);
+            }
+        }
+
+        const facGuardadas = localStorage.getItem(CLAVE_FACTURAS);
+        if (facGuardadas) {
+            const parsedFac = JSON.parse(facGuardadas);
+            if (Array.isArray(parsedFac)) {
+                facturasEmitidas = parsedFac;
+            }
+        }
+    } catch (e) {
+        // Si hay datos corruptos, conserva los valores por defecto del código
+    }
+}
+
+function cambiarVista(vista) {
+    const secFacturacion = document.getElementById("vista-facturacion");
+    const secInventario = document.getElementById("vista-inventario");
+    const btnFacturacion = document.getElementById("nav-facturacion");
+    const btnInventario = document.getElementById("nav-inventario");
+
+    if (vista === "inventario") {
+        secFacturacion.classList.add("oculto");
+        secInventario.classList.remove("oculto");
+        btnInventario.classList.add("activo");
+        btnFacturacion.classList.remove("activo");
+        renderizarInventario();
+    } else {
+        secInventario.classList.add("oculto");
+        secFacturacion.classList.remove("oculto");
+        btnFacturacion.classList.add("activo");
+        btnInventario.classList.remove("activo");
+    }
+}
+
+function renderizarInventario() {
+    const cuerpoInventario = document.getElementById("lista_inventario");
+    if (!cuerpoInventario) return;
+
+    cuerpoInventario.innerHTML = "";
+
+    for (const codigo in inventario) {
+        const item = inventario[codigo];
+        const estado = item.stock > 0 ? "Disponible" : "Agotado";
+
+        cuerpoInventario.innerHTML += `
+            <tr>
+                <td>${codigo}</td>
+                <td>${item.nombre}</td>
+                <td>$${item.precio.toFixed(2)}</td>
+                <td>${item.stock}</td>
+                <td>${estado}</td>
+            </tr>
+        `;
+    }
+}
+
+function confirmarFactura() {
+    if (carrito.length === 0) {
+        alert("⚠️ Agrega al menos un producto antes de confirmar la factura.");
+        return;
+    }
+
+    const cliente = document.getElementById("cliente").value.trim();
+    const ciCliente = document.getElementById("ci_cliente").value.trim();
+    const telefonoCliente = document.getElementById("telefono_cliente").value.trim();
+
+    if (!cliente || !ciCliente || !telefonoCliente) {
+        alert("⚠️ Completa Nombre, CI/Cédula y Teléfono del cliente antes de confirmar.");
+        return;
+    }
+
+    for (const item of carrito) {
+        if (item.cantidad > inventario[item.codigo].stock) {
+            alert(`⚠️ Stock insuficiente para "${item.nombre}". Disponible: ${inventario[item.codigo].stock}.`);
+            return;
+        }
+    }
+
+    let totalFactura = 0;
+    for (const item of carrito) {
+        inventario[item.codigo].stock -= item.cantidad;
+        totalFactura += item.subtotal;
+    }
+
+facturasEmitidas.push({
+        numero: document.getElementById("num_factura").value.trim() || "001",
+        fecha: document.getElementById("fecha").value,
+        cliente: {
+            nombre: cliente,
+            ci: ciCliente,
+            telefono: telefonoCliente
+        },
+        items: [...carrito],
+        total: totalFactura
+    });
+
+    guardarEstadoLocal();
+
+
+    carrito = [];
+    renderizarCarrito();
+    renderizarInventario();
+}
+    
+
+    alert("✅ Factura confirmada y stock actualizado en el inventario.");
+
+    carrito = [];
+    renderizarCarrito();
+    renderizarInventario();
+
+function alternarFormularioProducto(forzarEstado) {
+    const form = document.getElementById("form-nuevo-producto");
+    if (!form) return;
+
+    if (typeof forzarEstado === "boolean") {
+        form.classList.toggle("oculto", !forzarEstado);
+    } else {
+        form.classList.toggle("oculto");
+    }
+
+    if (!form.classList.contains("oculto")) {
+        document.getElementById("nuevo_codigo")?.focus();
+    }
+}
+
+function guardarNuevoProducto() {
+    const inputCodigo = document.getElementById("nuevo_codigo");
+    const inputNombre = document.getElementById("nuevo_nombre");
+    const inputPrecio = document.getElementById("nuevo_precio");
+    const inputStock = document.getElementById("nuevo_stock");
+
+    const codigo = (inputCodigo?.value || "").trim();
+    const nombre = (inputNombre?.value || "").trim();
+    const precio = parseFloat(inputPrecio?.value);
+    const stock = parseInt(inputStock?.value, 10);
+
+    if (!codigo || !nombre) {
+        alert("⚠️ Completa el código y el nombre del producto.");
+        return;
+    }
+
+    if (inventario[codigo]) {
+        alert(`⚠️ Ya existe un producto con el código "${codigo}". Usa otro código.`);
+        return;
+    }
+
+    if (isNaN(precio) || precio < 0) {
+        alert("⚠️ Ingresa un precio válido (0 o mayor).");
+        return;
+    }
+
+    if (isNaN(stock) || stock < 0) {
+        alert("⚠️ Ingresa un stock inicial válido (0 o mayor).");
+        return;
+    }
+
+    inventario[codigo] = { nombre, precio, stock };
+    guardarEstadoLocal();
+
+    if (inputCodigo) inputCodigo.value = "";
+    if (inputNombre) inputNombre.value = "";
+    if (inputPrecio) inputPrecio.value = "";
+    if (inputStock) inputStock.value = "1";
+
+    cargarEstadoLocal();
+    actualizarListaProductos();
+    alternarFormularioProducto(false);
+    renderizarInventario();
+    actualizarListaProductos();
+
+    alert(`✅ Producto "${nombre}" agregado al inventario.`);
+}

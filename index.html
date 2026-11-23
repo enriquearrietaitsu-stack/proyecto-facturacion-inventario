@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Generador de Facturas</title>
+    <link rel="stylesheet" href="estilos.css">
+<base target="_blank">
+</head>
+<body>
+    <div class="contenedor">
+        <div class="dashboard">
+            <aside class="sidebar no-imprimir">
+                <h2>Panel</h2>
+                <button type="button" id="nav-facturacion" class="btn-nav activo" onclick="cambiarVista('facturacion')">
+                    🧾 Facturación
+                </button>
+                <button type="button" id="nav-inventario" class="btn-nav" onclick="cambiarVista('inventario')">
+                    📦 Inventario
+                </button>
+           <!-- En index.html, dentro de <aside class="sidebar no-imprimir"> -->
+                <button type="button" id="nav-ventas" class="btn-nav" onclick="cambiarVista('ventas')">
+                   📊 Registro de Ventas
+                 </button>
+           </aside>
+<main class="contenido-principal">
+                <section id="vista-facturacion">
+                    <h1>🧾 FACTURA DE VENTA</h1>
+
+                    <div class="fila-datos">
+                        <div class="campo">
+                            <label for="cliente">Cliente:</label>
+                            <input type="text" id="cliente" placeholder="Nombre del cliente">
+                        </div>
+                        <div class="campo">
+                            <label for="ci_cliente">CI / Cédula:</label>
+                            <input type="text" id="ci_cliente" placeholder="Ej. V-12345678">
+                        </div>
+                        <div class="campo">
+                            <label for="telefono_cliente">Teléfono:</label>
+                            <input type="text" id="telefono_cliente" placeholder="Ej. 0412-0000000">
+                        </div>
+                    </div>
+
+                    <div class="fila-datos">
+                        <div class="campo">
+                            <label for="fecha">Fecha:</label>
+                            <input type="date" id="fecha">
+                        </div>
+                        <div class="campo">
+                            <label for="num_factura">N.° Factura:</label>
+                            <input type="text" id="num_factura" value="001">
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <div class="fila-datos no-imprimir">
+                        <div class="campo campo-ancho">
+                            <label for="buscar_producto">Producto / Servicio (escribe código o nombre):</label>
+                            <input type="text" id="buscar_producto" list="lista_productos" placeholder="Ej. 1 o Cable UTP..." autocomplete="off">
+                            <datalist id="lista_productos"></datalist>
+                        </div>
+                        <div class="campo">
+                            <label for="cantidad">Cantidad:</label>
+                            <input type="number" id="cantidad" value="1" min="1">
+                        </div>
+                    </div>
+
+                    <div class="botones no-imprimir">
+                        <div id="estado-carrito" class="no-imprimir" style="margin-top: 8px; font-weight: bold;"></div>
+                        <button type="button" id="btnAgregar" class="btn-agregar" onclick="agregarProducto()">➕ Agregar al Carrito</button>
+                        <button type="button" id="btnConfirmar" class="btn-confirmar" onclick="confirmarFactura()">✅ Confirmar Factura</button>
+                        <button type="button" id="btnImprimir" class="btn-imprimir" onclick="window.print()">🖨️ Guardar PDF</button>
+                        <button type="button" id="btnLimpiar" class="btn-limpiar" onclick="limpiarFactura()">🗑️ Nueva Factura</button>
+                    </div>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Cód.</th>
+                                <th>Producto / Servicio</th>
+                                <th>Cant.</th>
+                                <th>P. Unit</th>
+                                <th>Subtotal</th>
+                                <th class="no-imprimir">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lista_carrito"></tbody>
+                    </table>
+
+                    <div class="total">
+                        <strong>TOTAL A PAGAR: $<span id="total">0.00</span></strong>
+                    </div>
+                </section>
+
+                <section id="vista-inventario" class="oculto">
+                    <h1>📦 MÓDULO DE INVENTARIO</h1>
+                    <p>Consulta el stock actual o agrega nuevos productos sin entrar al código.</p>
+
+                    <div class="botones no-imprimir">
+                        <button type="button" id="btnNuevoProducto" class="btn-agregar" onclick="alternarFormularioProducto()">➕ Nuevo Producto</button>
+                        <button type="button" id="btnReducirStock" class="btn-limpiar" onclick="alternarFormularioReduccion()">➖ Reducir Stock</button>
+                    </div>
+
+                    <div id="form-nuevo-producto" class="oculto" style="margin-top: 15px; padding: 15px; border: 1px solid #cbd5e1; border-radius: 6px; background: #f8fafc;">
+                        <div class="fila-datos">
+                            <div class="campo">
+                                <label for="nuevo_codigo">Código:</label>
+                                <input type="text" id="nuevo_codigo" placeholder="Ej. 11 o SSD-240">
+                            </div>
+                            <div class="campo campo-ancho">
+                                <label for="nuevo_nombre">Nombre del Producto / Servicio:</label>
+                                <input type="text" id="nuevo_nombre" placeholder="Ej. Disco SSD 240GB">
+                            </div>
+                        </div>
+                        <div class="fila-datos">
+                            <div class="campo">
+                                <label for="nuevo_precio">Precio Unit. ($):</label>
+                                <input type="number" id="nuevo_precio" step="0.01" min="0" placeholder="0.00">
+                            </div>
+                            <div class="campo">
+                                <label for="nuevo_stock">Stock Inicial:</label>
+                                <input type="number" id="nuevo_stock" min="0" value="1">
+                            </div>
+                        </div>
+                        <div class="botones">
+                            <button type="button" class="btn-confirmar" onclick="guardarNuevoProducto()">💾 Guardar en Inventario</button>
+                            <button type="button" class="btn-limpiar" onclick="alternarFormularioProducto(false)">Cancelar</button>
+                        </div>
+                    </div>
+
+                    <div id="form-reducir-stock" class="oculto" style="margin-top: 15px; padding: 15px; border: 1px solid #f3c2c2; border-radius: 6px; background: #fef2f2;">
+                        <div class="fila-datos">
+                            <div class="campo campo-ancho">
+                                <label for="reducir_producto">Producto a descontar (código o nombre):</label>
+                                <input type="text" id="reducir_producto" list="lista_productos" placeholder="Ej. 6 o Pasta Termica Premium" autocomplete="off">
+                            </div>
+                            <div class="campo">
+                                <label for="reducir_cantidad">Cantidad a descontar:</label>
+                                <input type="number" id="reducir_cantidad" min="1" value="1">
+                            </div>
+                        </div>
+                        <div class="fila-datos">
+                            <div class="campo campo-ancho">
+                                <label for="reducir_motivo">Motivo (opcional):</label>
+                                <input type="text" id="reducir_motivo" placeholder="Ej. Producto dañado, uso interno, pérdida...">
+                            </div>
+                        </div>
+                        <div class="botones">
+                            <button type="button" class="btn-confirmar" onclick="guardarReduccionStock()">💾 Descontar del Stock</button>
+                            <button type="button" class="btn-limpiar" onclick="alternarFormularioReduccion(false)">Cancelar</button>
+                        </div>
+                    </div>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Cód.</th>
+                                <th>Producto / Servicio</th>
+                                <th>Precio Unit.</th>
+                                <th>Stock Actual</th>
+                                <th>Estado</th>
+                                <th class="no-imprimir">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lista_inventario"></tbody>
+                    </table>
+               </section>
+
+           <section id="vista-ventas" class="oculto">
+               <h1>📊 REGISTRO DE VENTAS</h1>
+               <p>Historial de facturas confirmadas y guardadas en este navegador.</p>
+
+               <table>
+                   <thead>
+                       <tr>
+                           <th>N.° Factura</th>
+                           <th>Fecha</th>
+                           <th>Cliente</th>
+                           <th>CI / Teléfono</th>
+                           <th>Productos</th>
+                           <th>Total</th>
+                       </tr>
+                   </thead>
+                   <tbody id="lista_ventas"></tbody>
+               </table>
+
+               <div class="total">
+                   <strong>TOTAL VENTAS REGISTRADAS: $<span id="total-ventas">0.00</span></strong>
+               </div>
+           </section>
+
+           <section id="vista-inventario" class="oculto">
+               
+               
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
