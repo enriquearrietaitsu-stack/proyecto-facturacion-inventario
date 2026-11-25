@@ -1,3 +1,5 @@
+import { mostrarAlerta, limpiarCamposFactura, renderizarTotal } from './js/ui.js';
+import { CLAVES_STORAGE, guardarDatos, cargarDatos } from './js/storage.js';
 // ============================================================================
 // 1. INVENTARIO DE PRODUCTOS Y SERVICIOS (Equivalente a tu inventario.xlsx)
 // ============================================================================
@@ -162,7 +164,7 @@ actualizarListaProductos();
 establecerFechaHoy();
 
 // Vinculamos los botones principales con sus funciones
-document.getElementById("btnAgregar").addEventListener("click", agregarProducto);
+document.getElementById("btnAgregar").addEventListener("click", agregarProducto);   
 document.getElementById("btnImprimir").addEventListener("click", () => window.print());
 document.getElementById("btnLimpiar").addEventListener("click", limpiarFactura);
 
@@ -669,3 +671,18 @@ window.addEventListener("beforeunload", function (event) {
         event.returnValue = "";
     }
 });
+
+// Al final de app.js
+window.cambiarVista = cambiarVista;
+window.agregarProducto = agregarProducto;
+window.confirmarFactura = confirmarFactura;
+window.sumarUnidad = sumarUnidad;
+window.restarUnidad = restarUnidad;
+window.eliminarProducto = eliminarProducto;
+window.eliminarProductoInventario = eliminarProductoInventario;
+window.alternarFormularioReduccion = alternarFormularioReduccion;
+window.alternarFormularioProducto = alternarFormularioProducto;
+window.limpiarFactura = limpiarFactura;
+window.guardarReduccionStock = guardarReduccionStock;
+window.guardarNuevoProducto = guardarNuevoProducto
+// Agrega aquí cualquier otra función que uses en onclick="..."
